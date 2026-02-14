@@ -1,22 +1,33 @@
 import cv2
-import mediapipe as mp
+from cvzone.HandTrackingModule import HandDetector
+import pyautogui
 
-# We use the 'tasks' API which is the newer way for Python 3.12
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
-
-print("Attempting to start camera...")
 cap = cv2.VideoCapture(0)
+detector = HandDetector(detectionCon=0.8, maxHands=1)
+screen_width, screen_height = pyautogui.size()
 
-while cap.isOpened():
-    success, image = cap.read()
-    if not success:
-        break
+while True:
+    success, img = cap.read()
+    img = cv2.flip(img, 1) # Flip for mirror effect
+    hands, img = detector.findHands(img) # This draws the dots for you automatically
 
-    # Just show the camera feed for now to see if OpenCV is okay
-    cv2.imshow('Janani Test Feed', image)
-    
-    if cv2.waitKey(5) & 0xFF == 27: # Press 'Esc' to exit
+    if hands:
+        # Get the first hand detected
+        lmList = hands[0]['lmList'] # List of 21 Landmark points
+        
+        # Landmark 8 is the Index Finger Tip
+        # lmList[8] gives us (x, y, z)
+        x1, y1 = lmList[8][0], lmList[8][1]
+
+        # Map camera coordinates to screen size
+        # We use a smaller range [100, 500] to make it easier to reach corners
+        mouse_x = cv2.np.interp(x1, [100, 540], [0, screen_width])
+        mouse_y = cv2.np.interp(y1, [100, 380], [0, screen_height])
+
+        pyautogui.moveTo(mouse_x, mouse_y)
+
+    cv2.imshow("Janani's AI Mouse", img)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()

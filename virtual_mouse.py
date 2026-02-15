@@ -1,47 +1,25 @@
-import cv2
-import pyautogui
-# We import the internal path directly to bypass the 'solutions' error
-try:
-    import mediapipe.python.solutions.hands as mp_hands
-    import mediapipe.python.solutions.drawing_utils as mp_drawing
-except ImportError:
-    # If that fails, we try the alternative internal path
-    from mediapipe.python.solutions import hands as mp_hands
-    from mediapipe.python.solutions import drawing_utils as mp_drawing
+if hands:
+        # Get the list of landmarks and the hand type (left or right)
+        lmList = hands[0]['lmList']
+        
+        # 1. Coordinates for Index (8) and Middle (12) finger tips
+        x1, y1 = lmList[8][0], lmList[8][1]
+        x2, y2 = lmList[12][0], lmList[12][1]
 
-# Initialize using the direct imports
-detector = mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.7)
-screen_w, screen_h = pyautogui.size()
+        # 2. Draw the rectangle and map coordinates (same as before)
+        cv2.rectangle(img, (100, 100), (540, 380), (255, 0, 255), 2)
+        mouse_x = np.interp(x1, (100, 540), (0, screen_w))
+        mouse_y = np.interp(y1, (100, 380), (0, screen_h))
 
-cap = cv2.VideoCapture(0)
+        # 3. Move the mouse cursor
+        pyautogui.moveTo(mouse_x, mouse_y, _pause=False)
 
-while True:
-    success, img = cap.read()
-    if not success: break
-    
-    img = cv2.flip(img, 1)
-    imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    results = detector.process(imgRGB)
-    
-    if results.multi_hand_landmarks:
-        for handLms in results.multi_hand_landmarks:
-            # Landmark 8 is the Index Finger Tip
-            index_finger = handLms.landmark[8]
-            
-            # Map coordinates to screen
-            cursor_x = int(index_finger.x * screen_w)
-            cursor_y = int(index_finger.y * screen_h)
-            
-            # Move mouse (setting tween=0 makes it instant)
-            pyautogui.moveTo(cursor_x, cursor_y, _pause=False)
-            
-            # Draw a circle on your finger in the preview
-            h, w, _ = img.shape
-            cv2.circle(img, (int(index_finger.x * w), int(index_finger.y * h)), 10, (0, 255, 0), cv2.FILLED)
+        # 4. Check distance for CLICKING
+        # findDistance calculates the pixels between two points
+        length, info, img = detector.findDistance(lmList[8][:2], lmList[12][:2], img)
 
-    cv2.imshow("Hand Mouse Test", img)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+        # If the fingers are very close (less than 40 pixels), click!
+        if length < 40:
+            cv2.circle(img, (info[4], info[5]), 15, (0, 255, 0), cv2.FILLED)
+            pyautogui.click()
+            print("Click detected!")
